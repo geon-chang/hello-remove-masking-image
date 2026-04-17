@@ -33,12 +33,21 @@ class LaMaModel:
             HxWx3 uint8 RGB at the original resolution.
         """
         orig_h, orig_w = image_rgb.shape[:2]
-        img = cv2.resize(image_rgb, INPUT_SIZE, interpolation=cv2.INTER_AREA)
-        msk = cv2.resize(mask_gray, INPUT_SIZE, interpolation=cv2.INTER_NEAREST)
+
+        # Carve/LaMa-ONNX expects BGR channel order (matches production pipeline).
+        image_bgr = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2BGR)
+
+        # Dilate mask so inpainting covers a slightly wider area than raw brush
+        # stroke (mirrors production's add_margin(mask, 20)).
+        k = np.ones((20, 20), np.uint8)
+        mask_dilated = cv2.dilate(mask_gray, k, iterations=1)
+
+        img = cv2.resize(image_bgr, INPUT_SIZE, interpolation=cv2.INTER_AREA)
+        msk = cv2.resize(mask_dilated, INPUT_SIZE, interpolation=cv2.INTER_NEAREST)
 
         img_f = (img.astype(np.float32) / 255.0).transpose(2, 0, 1)[None]  # (1,3,H,W)
         msk_f = (msk.astype(np.float32) / 255.0)[None, None]                # (1,1,H,W)
-        msk_f = (msk_f > 0.5).astype(np.float32)
+        msk_f = (msk_f > 0.0).astype(np.float32)
 
         feeds = self._feeds(img_f, msk_f)
         out = self.sess.run(None, feeds)[0]
@@ -48,7 +57,9 @@ class LaMaModel:
         if out.max() <= 1.0 + 1e-4:
             out = out * 255.0
         out = np.clip(out, 0, 255).astype(np.uint8)
-        return cv2.resize(out, (orig_w, orig_h), interpolation=cv2.INTER_CUBIC)
+        out = cv2.resize(out, (orig_w, orig_h), interpolation=cv2.INTER_CUBIC)
+        # Model output is BGR (matching the input channel order); convert back.
+        return cv2.cvtColor(out, cv2.COLOR_BGR2RGB)
 
     def _feeds(self, img: np.ndarray, mask: np.ndarray) -> dict[str, np.ndarray]:
         if len(self.input_names) == 2:
