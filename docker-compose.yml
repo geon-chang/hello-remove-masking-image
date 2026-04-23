@@ -9,6 +9,7 @@ services:
       PORT: "7860"
       NVIDIA_VISIBLE_DEVICES: all
       NVIDIA_DRIVER_CAPABILITIES: compute,utility
+    gpus: all
     volumes:
       - eraser-models:/app/models
       - eraser-hf-cache:/app/.cache/huggingface

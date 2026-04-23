@@ -1,4 +1,9 @@
+--extra-index-url https://download.pytorch.org/whl/cu128
+
 gradio>=5.0.0,<6.0.0
+# Current target system: NVIDIA RTX 4090 + CUDA 12.8.
+# Use the GPU runtime by default so Docker/local installs do not silently fall
+# back to CPU-only wheels.
 onnxruntime-gpu>=1.20.0
 numpy>=1.26.0
 pillow>=10.0.0
@@ -10,6 +15,7 @@ opencv-python>=4.9.0
 # our gradio 5.x + hub 1.x stack, so install with --no-deps and supply
 # compatible deps manually.
 iopaint==1.6.0  # install with: pip install --no-deps iopaint==1.6.0
+# CUDA-enabled PyTorch wheels are resolved via the extra index above.
 torch>=2.8,<2.11
 torchvision
 diffusers>=0.32,<0.36

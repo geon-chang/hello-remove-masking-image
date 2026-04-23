@@ -1,5 +1,7 @@
 FROM nvidia/cuda:12.6.3-cudnn-runtime-ubuntu22.04
 
+ARG TORCH_INDEX_URL=https://download.pytorch.org/whl/cu128
+
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
@@ -22,8 +24,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt ./
 RUN python -m pip install --upgrade pip && \
     python -m pip install --no-deps iopaint==1.6.0 && \
-    grep -v '^iopaint==' requirements.txt > /tmp/requirements-no-iopaint.txt && \
-    python -m pip install -r /tmp/requirements-no-iopaint.txt
+    grep -Ev '^(iopaint==|onnxruntime|torch([[:punct:]]|$)|torchvision([[:punct:]]|$))' requirements.txt > /tmp/requirements-docker.txt && \
+    python -m pip install --index-url ${TORCH_INDEX_URL} 'torch>=2.8,<2.11' torchvision && \
+    python -m pip install 'onnxruntime-gpu>=1.17.0' && \
+    python -m pip install -r /tmp/requirements-docker.txt
 
 COPY . .
 
