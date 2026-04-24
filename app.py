@@ -8,6 +8,8 @@
 """
 from __future__ import annotations
 
+import base64
+import io
 import os
 import threading
 import time
@@ -135,6 +137,84 @@ def _unpack_editor(editor_value) -> tuple[np.ndarray, np.ndarray]:
     return image_rgb, mask
 
 
+def _read_image_payload(payload: str | None) -> np.ndarray:
+    if not payload:
+        raise gr.Error("이미지 파일을 먼저 선택하세요.")
+    if "," in payload:
+        payload = payload.split(",", 1)[1]
+    try:
+        raw = base64.b64decode(payload, validate=True)
+        return np.array(Image.open(io.BytesIO(raw)).convert("RGB"))
+    except Exception as e:  # noqa: BLE001
+        raise gr.Error(f"이미지를 읽을 수 없습니다: {e}") from e
+
+
+def load_outpaint_image(payload: str | None) -> np.ndarray:
+    return _read_image_payload(payload)
+
+
+def load_editor_image(payload: str | None):
+    image_rgb = _read_image_payload(payload)
+    return {
+        "background": image_rgb,
+        "layers": [],
+        "composite": image_rgb,
+    }
+
+
+UPLOAD_JS = """
+() => {
+  if (window.__eraserInlineUploadBound) return;
+  window.__eraserInlineUploadBound = true;
+
+  function setTextboxValue(elemId, value) {
+    const root = document.getElementById(elemId);
+    const input = root?.querySelector("textarea, input");
+    if (!input) return;
+    const proto = input.tagName === "TEXTAREA"
+      ? window.HTMLTextAreaElement.prototype
+      : window.HTMLInputElement.prototype;
+    const setter = Object.getOwnPropertyDescriptor(proto, "value")?.set;
+    if (setter) setter.call(input, value);
+    else input.value = value;
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+
+  document.addEventListener("change", (event) => {
+    const input = event.target;
+    if (!(input instanceof HTMLInputElement) || input.type !== "file") return;
+    const target = input.dataset.imagePayloadTarget;
+    if (!target) return;
+    const file = input.files?.[0];
+    const name = document.querySelector(`[data-image-name-for="${target}"]`);
+    if (!file) {
+      setTextboxValue(target, "");
+      if (name) name.textContent = "";
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setTextboxValue(target, String(reader.result || ""));
+      if (name) name.textContent = file.name;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+"""
+
+
+def _browser_image_input(target: str) -> gr.HTML:
+    return gr.HTML(
+        f"""
+        <div class="browser-image-input">
+          <input type="file" accept="image/*" data-image-payload-target="{target}">
+          <span data-image-name-for="{target}"></span>
+        </div>
+        """
+    )
+
+
 # --- Tab 1: Comparison --------------------------------------------------------
 
 def run_comparison(
@@ -260,7 +340,7 @@ def run_outpaint(
 
 # --- UI -----------------------------------------------------------------------
 
-with gr.Blocks(title="Eraser Model Playground") as demo:
+with gr.Blocks(title="Eraser Model Playground", js=UPLOAD_JS) as demo:
     gr.Markdown(
         """
         # Object-Removal Model Playground
@@ -302,11 +382,18 @@ with gr.Blocks(title="Eraser Model Playground") as demo:
         )
         with gr.Row():
             with gr.Column(scale=1):
+                _browser_image_input("outpaint_image_payload")
+                outpaint_image_payload = gr.Textbox(
+                    elem_id="outpaint_image_payload",
+                    visible="hidden",
+                )
                 input_img_op = gr.Image(
                     label="확장할 이미지",
                     type="numpy",
-                    sources=["upload", "clipboard"],
+                    sources=[],
+                    interactive=False,
                 )
+                load_img_op = gr.Button("선택한 파일 불러오기")
                 with gr.Row():
                     top_px = gr.Slider(0, 512, value=128, step=16, label="Top (↑) 확장 px")
                     bottom_px = gr.Slider(0, 512, value=128, step=16, label="Bottom (↓) 확장 px")
@@ -333,6 +420,11 @@ with gr.Blocks(title="Eraser Model Playground") as demo:
                 out_img_op = gr.Image(label="확장된 결과", type="pil")
                 out_info_op = gr.Markdown()
 
+        load_img_op.click(
+            load_outpaint_image,
+            inputs=[outpaint_image_payload],
+            outputs=[input_img_op],
+        )
         run_op.click(
             run_outpaint,
             inputs=[
@@ -357,15 +449,21 @@ with gr.Blocks(title="Eraser Model Playground") as demo:
         )
         with gr.Row():
             with gr.Column(scale=1):
+                _browser_image_input("comparison_image_payload")
+                comparison_image_payload = gr.Textbox(
+                    elem_id="comparison_image_payload",
+                    visible="hidden",
+                )
                 editor_cmp = gr.ImageEditor(
                     label="이미지 + 마스크 (브러시로 제거 영역 칠하기)",
                     type="numpy",
                     brush=gr.Brush(default_size=30, colors=["#ffffff"]),
                     eraser=gr.Eraser(default_size=30),
-                    sources=["upload", "clipboard"],
+                    sources=[],
                     layers=True,
                     transforms=[],
                 )
+                load_cmp = gr.Button("선택한 파일을 에디터에 불러오기")
                 migan_invert = gr.Checkbox(
                     value=True,
                     label="MI-GAN: invert mask (debug)",
@@ -397,6 +495,11 @@ with gr.Blocks(title="Eraser Model Playground") as demo:
                 pp_img_cmp = gr.Image(label="PowerPaint v2-1 결과 (TO-BE)", type="pil")
                 pp_time_cmp = gr.Markdown()
 
+        load_cmp.click(
+            load_editor_image,
+            inputs=[comparison_image_payload],
+            outputs=[editor_cmp],
+        )
         run_cmp.click(
             run_comparison,
             inputs=[editor_cmp, migan_invert, pp_steps, pp_cfg, pp_seed, pp_dilate, pp_negative],
@@ -409,4 +512,5 @@ if __name__ == "__main__":
         server_name="0.0.0.0",
         server_port=int(os.getenv("PORT", "7860")),
         share=os.getenv("GRADIO_SHARE", "false").lower() == "true",
+        root_path=os.getenv("GRADIO_ROOT_PATH", ""),
     )

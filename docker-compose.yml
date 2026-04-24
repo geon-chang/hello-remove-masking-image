@@ -4,7 +4,7 @@ services:
     image: hello-eraser:latest
     container_name: hello-eraser
     environment:
-      GRADIO_ROOT_PATH: /ai-demo/eraser
+      GRADIO_ROOT_PATH: https://dev-aplus-api.altools.co.kr/ai-demo/eraser
       GRADIO_SERVER_NAME: 0.0.0.0
       PORT: "7860"
       NVIDIA_VISIBLE_DEVICES: all
@@ -17,13 +17,6 @@ services:
       # Bound only to loopback; the host's nginx-https-proxy (host network)
       # reverse-proxies /ai-demo/eraser/ to this port.
       - "127.0.0.1:7860:7860"
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
     restart: unless-stopped
 
 volumes:

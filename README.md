@@ -22,7 +22,7 @@ python3.13 -m venv .venv
 source .venv/bin/activate
 
 # 기본 데모 (LaMa + MI-GAN, GPU 우선)
-pip install gradio>=5 onnxruntime-gpu numpy pillow huggingface_hub opencv-python
+pip install gradio==5.49.1 onnxruntime-gpu numpy pillow huggingface_hub opencv-python
 
 # PowerPaint 추가 (iopaint는 오래된 deps 핀이 있어 --no-deps 필요)
 pip install --no-deps iopaint==1.6.0
@@ -43,7 +43,8 @@ python download_model.py
 python app.py
 ```
 
-웹 UI는 `http://localhost:7860`.
+웹 UI는 로컬에서 `http://localhost:7860`.
+프록시 배포 환경에서는 `https://dev-aplus-api.altools.co.kr/ai-demo/eraser/`.
 
 ### PowerPaint 비활성화 (LaMa + MI-GAN만 쓰고 싶을 때)
 ```bash
@@ -67,19 +68,18 @@ python app.py
 ## Usage
 
 ### Tab 1 — Comparison (AS-IS vs TO-BE)
-1. 이미지 업로드 → 흰 브러시로 제거할 영역 칠하기.
-2. **Run all 3 models** 클릭.
-3. 오른쪽에 LaMa / MI-GAN / PowerPaint 결과가 세로로 표시되고 각 ms 출력.
+1. **비교용 이미지 파일 선택**에서 이미지를 고른 뒤 **선택한 파일을 에디터에 불러오기** 클릭.
+2. 에디터에서 흰 브러시로 제거할 영역 칠하기.
+3. **Run all 3 models** 클릭.
+4. 오른쪽에 LaMa / MI-GAN / PowerPaint 결과가 세로로 표시되고 각 ms 출력.
 
 ### Tab 2 — PowerPaint Playground
-1. 이미지 업로드 + 마스크 칠하기.
-2. **Task** 드롭다운 선택:
-   - `object-remove` — 배경으로 자연스럽게 제거 (prompt 불필요)
-   - `text-guided` — 프롬프트로 지정한 오브젝트 생성
-   - `shape-guided` — 마스크 모양에 맞춰 생성 (fitting_degree 조절)
-   - `context-aware` — 주변 맥락으로 채우기
-   - `outpainting` — 바깥 확장
-3. Prompt / Steps / CFG / Seed 조절 후 **Generate**.
+1. **이미지 파일 선택**에서 이미지를 고른 뒤 **선택한 파일 불러오기** 클릭.
+2. 확장할 방향(top/right/bottom/left)과 Prompt / Steps / CFG / Seed 조절.
+3. **Outpaint** 클릭.
+
+브라우저 파일 입력은 Gradio의 기본 upload-progress 경로를 우회하도록 구현되어 있습니다.
+프록시 환경에서 `upload_progress?upload_id=undefined`가 발생하지 않도록 이미지 파일은 브라우저에서 base64로 읽어 서버 함수에 전달합니다.
 
 ## GPU
 

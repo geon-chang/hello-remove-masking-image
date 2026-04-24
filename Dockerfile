@@ -1,6 +1,7 @@
 FROM nvidia/cuda:12.6.3-cudnn-runtime-ubuntu22.04
 
 ARG TORCH_INDEX_URL=https://download.pytorch.org/whl/cu128
+ARG PIP_TRUSTED_HOSTS="--trusted-host download.pytorch.org --trusted-host download-r2.pytorch.org --trusted-host pypi.org --trusted-host files.pythonhosted.org --trusted-host pypi.nvidia.com"
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -23,11 +24,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY requirements.txt ./
 RUN python -m pip install --upgrade pip && \
-    python -m pip install --no-deps iopaint==1.6.0 && \
+    python -m pip install ${PIP_TRUSTED_HOSTS} --no-deps iopaint==1.6.0 && \
     grep -Ev '^(iopaint==|onnxruntime|torch([[:punct:]]|$)|torchvision([[:punct:]]|$))' requirements.txt > /tmp/requirements-docker.txt && \
-    python -m pip install --index-url ${TORCH_INDEX_URL} 'torch>=2.8,<2.11' torchvision && \
-    python -m pip install 'onnxruntime-gpu>=1.17.0' && \
-    python -m pip install -r /tmp/requirements-docker.txt
+    python -m pip install ${PIP_TRUSTED_HOSTS} --index-url ${TORCH_INDEX_URL} 'torch>=2.8,<2.11' torchvision && \
+    python -m pip install ${PIP_TRUSTED_HOSTS} 'onnxruntime-gpu>=1.20.0' && \
+    python -m pip install ${PIP_TRUSTED_HOSTS} -r /tmp/requirements-docker.txt
 
 COPY . .
 
