@@ -68,18 +68,14 @@ python app.py
 ## Usage
 
 ### Tab 1 — Comparison (AS-IS vs TO-BE)
-1. **비교용 이미지 파일 선택**에서 이미지를 고른 뒤 **선택한 파일을 에디터에 불러오기** 클릭.
-2. 에디터에서 흰 브러시로 제거할 영역 칠하기.
-3. **Run all 3 models** 클릭.
-4. 오른쪽에 LaMa / MI-GAN / PowerPaint 결과가 세로로 표시되고 각 ms 출력.
+1. 이미지 업로드 → 흰 브러시로 제거할 영역 칠하기.
+2. **Run all 3 models** 클릭.
+3. 오른쪽에 LaMa / MI-GAN / PowerPaint 결과가 세로로 표시되고 각 ms 출력.
 
 ### Tab 2 — PowerPaint Playground
-1. **이미지 파일 선택**에서 이미지를 고른 뒤 **선택한 파일 불러오기** 클릭.
+1. 이미지 업로드.
 2. 확장할 방향(top/right/bottom/left)과 Prompt / Steps / CFG / Seed 조절.
 3. **Outpaint** 클릭.
-
-브라우저 파일 입력은 Gradio의 기본 upload-progress 경로를 우회하도록 구현되어 있습니다.
-프록시 환경에서 `upload_progress?upload_id=undefined`가 발생하지 않도록 이미지 파일은 브라우저에서 base64로 읽어 서버 함수에 전달합니다.
 
 ## GPU
 
